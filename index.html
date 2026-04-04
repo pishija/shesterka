@@ -437,28 +437,42 @@
     .dist-bar.highlight { background: var(--color-correct); }
 
     /* ── Responsive ──────────────────────────────── */
-    @media (max-height: 650px) {
+
+    /* Mobile portrait: tile size derived from viewport width so nothing overflows.
+       Formula: (100vw - 16px side padding - 5×4px tile gaps) / 6 tiles */
+    @media (max-width: 520px) {
       :root {
-        --tile-size:  50px;
-        --tile-font:  1.6rem;
-        --key-height: 46px;
+        --tile-size:  calc((100vw - 36px) / 6);
+        --tile-font:  clamp(1.2rem, 5vw, 2rem);
+        --key-height: 50px;
       }
       header { height: 44px; }
-      main { padding: 6px 8px 4px; }
+      header h1 { font-size: 1.4rem; }
+      main { padding: 6px 8px 6px; }
       #board { gap: 4px; }
-      .row { gap: 4px; }
+      .row   { gap: 4px; }
       #keyboard { gap: 4px; }
       .keyboard-row { gap: 4px; }
-      .key { min-width: 32px; font-size: 0.78rem; }
+      /* Let keys shrink freely to fill the row */
+      .key       { min-width: 0; max-width: none; font-size: 0.78rem; }
+      .key.wide  { max-width: none; font-size: 0.65rem; }
     }
 
-    @media (max-width: 380px) {
+    /* Landscape / short screens */
+    @media (max-height: 600px) {
       :root {
-        --tile-size:  52px;
-        --tile-font:  1.5rem;
-        --key-height: 52px;
+        --tile-size:  min(calc((100vw - 36px) / 6), 44px);
+        --tile-font:  1.4rem;
+        --key-height: 40px;
       }
-      .key { min-width: 30px; font-size: 0.78rem; }
+      header { height: 40px; }
+      main { padding: 4px 8px 2px; }
+      #board { gap: 4px; }
+      .row   { gap: 4px; }
+      #keyboard { gap: 3px; }
+      .keyboard-row { gap: 3px; }
+      .key      { min-width: 0; max-width: none; font-size: 0.72rem; }
+      .key.wide { max-width: none; font-size: 0.6rem; }
     }
   </style>
 </head>
