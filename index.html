@@ -998,6 +998,8 @@
     // ── Share ─────────────────────────────────────────────────────
     const EMOJI = { correct: '🟩', present: '🟨', absent: '⬛' };
 
+    const GAME_URL = 'https://pishija.github.io/shesterka/';
+
     function generateShareText() {
       const dayIdx = getDayIndex();
       const score  = gameStatus === 'won' ? `${guesses.length}/6` : 'X/6';
@@ -1006,7 +1008,8 @@
         const res = evaluateGuess(guess);
         text += res.map(s => EMOJI[s]).join('') + '\n';
       });
-      return text.trim();
+      text += `\n${GAME_URL}`;
+      return text;
     }
 
     // ── Event Listeners ───────────────────────────────────────────
