@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="mk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Шестерка</title>
+  <script src="words.js"></script>
+  <style>
+    /* ── Reset & Base ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --color-correct:     #538d4e;
+      --color-present:     #b59f3b;
+      --color-absent:      #3a3a3c;
+      --color-bg:          #121213;
+      --color-text:        #ffffff;
+      --color-tile-border: #565758;
+      --color-key-bg:      #818384;
+      --color-key-text:    #ffffff;
+      --color-empty-bg:    #121213;
+      --color-header-border: #3a3a3c;
+      --tile-size:         62px;
+      --tile-font:         2rem;
+      --key-height:        58px;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--color-bg);
+      color: var(--color-text);
+      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    /* ── Header ──────────────────────────────────── */
+    header {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      height: 50px;
+      border-bottom: 1px solid var(--color-header-border);
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 4px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+    }
+
+    .icon-btn:hover { background: var(--color-absent); }
+
+    /* ── Main layout ─────────────────────────────── */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      max-width: 500px;
+      padding: 10px 8px 8px;
+      overflow: hidden;
+    }
+
+    /* ── Toast ───────────────────────────────────── */
+    #toast-container {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--color-text);
+      color: var(--color-bg);
+      padding: 10px 16px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      animation: toast-in 0.15s ease, toast-out 0.3s ease 1.7s forwards;
+    }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toast-out {
+      from { opacity: 1; }
+      to   { opacity: 0; }
+    }
+
+    /* ── Board ───────────────────────────────────── */
+    #board-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    #board {
+      display: grid;
+      grid-template-rows: repeat(6, var(--tile-size));
+      gap: 5px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(6, var(--tile-size));
+      gap: 5px;
+    }
+
+    .tile {
+      width: var(--tile-size);
+      height: var(--tile-size);
+      border: 2px solid var(--color-tile-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--tile-font);
+      font-weight: 700;
+      text-transform: uppercase;
+      user-select: none;
+      transition: border-color 0.1s;
+    }
+
+    .tile[data-letter] { border-color: #999; }
+
+    .tile[data-state="correct"] {
+      background: var(--color-correct);
+      border-color: var(--color-correct);
+      color: #fff;
+    }
+    .tile[data-state="present"] {
+      background: var(--color-present);
+      border-color: var(--color-present);
+      color: #fff;
+    }
+    .tile[data-state="absent"] {
+      background: var(--color-absent);
+      border-color: var(--color-absent);
+      color: #fff;
+    }
+
+    /* ── Animations ──────────────────────────────── */
+    @keyframes pop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+    .tile.pop { animation: pop 0.1s ease; }
+
+    @keyframes flip {
+      0%   { transform: scaleY(1); }
+      50%  { transform: scaleY(0); }
+      100% { transform: scaleY(1); }
+    }
+    .tile.flip { animation: flip 0.5s ease; }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      25%       { transform: translateY(-24px); }
+      55%       { transform: translateY(-12px); }
+      75%       { transform: translateY(-6px); }
+    }
+    .tile.bounce { animation: bounce 0.7s ease; }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      15%      { transform: translateX(-6px); }
+      35%      { transform: translateX(6px); }
+      55%      { transform: translateX(-4px); }
+      75%      { transform: translateX(4px); }
+    }
+    .row.shake { animation: shake 0.4s ease; }
+
+    /* ── Keyboard ────────────────────────────────── */
+    #keyboard {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .keyboard-row {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .key {
+      height: var(--key-height);
+      min-width: 38px;
+      padding: 0;
+      border: none;
+      border-radius: 4px;
+      background: var(--color-key-bg);
+      color: var(--color-key-text);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      max-width: 44px;
+      font-family: inherit;
+      transition: background 0.2s, color 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .key.wide { flex: 1.6; max-width: 66px; font-size: 0.75rem; }
+
+    .key[data-state="correct"] { background: var(--color-correct); }
+    .key[data-state="present"] { background: var(--color-present); }
+    .key[data-state="absent"]  { background: var(--color-absent); }
+
+    /* ── Modals ──────────────────────────────────── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-backdrop[hidden] { display: none; }
+
+    .modal-box {
+      background: #1a1a1b;
+      border: 1px solid var(--color-tile-border);
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 380px;
+      position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    .modal-box h2 {
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    /* Help modal */
+    .help-rule { font-size: 0.88rem; margin-bottom: 12px; line-height: 1.5; }
+    .help-divider { border: none; border-top: 1px solid var(--color-tile-border); margin: 12px 0; }
+
+    .help-example {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .help-tile {
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--color-tile-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .help-tile.correct { background: var(--color-correct); border-color: var(--color-correct); }
+    .help-tile.present { background: var(--color-present); border-color: var(--color-present); }
+    .help-tile.absent  { background: var(--color-absent);  border-color: var(--color-absent);  }
+
+    .help-example p { font-size: 0.85rem; line-height: 1.4; }
+    .help-example strong { color: var(--color-text); }
+
+    /* End-of-game modal */
+    .end-result {
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .end-answer {
+      text-align: center;
+      font-size: 1rem;
+      color: #ccc;
+      margin-bottom: 20px;
+    }
+
+    .end-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn-primary {
+      background: var(--color-correct);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 14px 20px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: inherit;
+    }
+
+    .btn-primary:hover { filter: brightness(1.1); }
+
+    .next-word-info {
+      text-align: center;
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-top: 8px;
+    }
+
+    /* Stats modal */
+    .stats-grid {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .stat-label {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      color: #ccc;
+      text-align: center;
+      max-width: 60px;
+    }
+
+    .dist-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+
+    .dist-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+    }
+
+    .dist-label { width: 12px; text-align: right; flex-shrink: 0; }
+
+    .dist-bar-wrap {
+      flex: 1;
+      height: 22px;
+      display: flex;
+      align-items: center;
+    }
+
+    .dist-bar {
+      height: 100%;
+      background: var(--color-key-bg);
+      min-width: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      transition: width 0.5s ease;
+    }
+
+    .dist-bar.highlight { background: var(--color-correct); }
+
+    /* ── Responsive ──────────────────────────────── */
+    @media (max-height: 650px) {
+      :root {
+        --tile-size:  50px;
+        --tile-font:  1.6rem;
+        --key-height: 46px;
+      }
+      header { height: 44px; }
+      main { padding: 6px 8px 4px; }
+      #board { gap: 4px; }
+      .row { gap: 4px; }
+      #keyboard { gap: 4px; }
+      .keyboard-row { gap: 4px; }
+      .key { min-width: 32px; font-size: 0.78rem; }
+    }
+
+    @media (max-width: 380px) {
+      :root {
+        --tile-size:  52px;
+        --tile-font:  1.5rem;
+        --key-height: 52px;
+      }
+      .key { min-width: 30px; font-size: 0.78rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <button class="icon-btn" id="btn-help" title="Помош" aria-label="Помош">?</button>
+    <h1>Шестерка</h1>
+    <button class="icon-btn" id="btn-stats" title="Статистики" aria-label="Статистики">📊</button>
+  </header>
+
+  <main>
+    <div id="toast-container"></div>
+    <div id="board-container">
+      <div id="board"></div>
+    </div>
+    <div id="keyboard"></div>
+  </main>
+
+  <!-- Help Modal -->
+  <div id="modal-help" class="modal-backdrop" hidden>
+    <div class="modal-box">
+      <button class="modal-close" data-close="modal-help" aria-label="Затвори">✕</button>
+      <h2>Како се игра</h2>
+      <p class="help-rule">Погоди го зборот за <strong>6 обиди</strong>.</p>
+      <p class="help-rule">Секој обид мора да биде вистински збор со 6 букви. По секој обид, бојата на плочките ќе се промени за да покаже колку сте биле блиску.</p>
+      <hr class="help-divider">
+      <p class="help-rule"><strong>Примери</strong></p>
+
+      <div class="help-example">
+        <div class="help-tile correct">Ж</div>
+        <p><strong>Ж</strong> е во зборот и на <strong>точното место</strong>.</p>
+      </div>
+
+      <div class="help-example">
+        <div class="help-tile present">И</div>
+        <p><strong>И</strong> е во зборот, но на <strong>погрешно место</strong>.</p>
+      </div>
+
+      <div class="help-example">
+        <div class="help-tile absent">О</div>
+        <p><strong>О</strong> не е во зборот.</p>
+      </div>
+
+      <hr class="help-divider">
+      <p class="help-rule" style="font-size:0.8rem; color:#aaa;">Нов збор секој ден!</p>
+    </div>
+  </div>
+
+  <!-- End-of-game Modal -->
+  <div id="modal-end" class="modal-backdrop" hidden>
+    <div class="modal-box">
+      <h2 id="end-title">Браво!</h2>
+      <p class="end-result" id="end-result"></p>
+      <p class="end-answer" id="end-answer"></p>
+      <div class="end-actions">
+        <button class="btn-primary" id="btn-share">Сподели 📋</button>
+        <button class="btn-primary" id="btn-stats-from-end" style="background: var(--color-key-bg);">Статистики 📊</button>
+      </div>
+      <p class="next-word-info" id="next-word-info"></p>
+    </div>
+  </div>
+
+  <!-- Stats Modal -->
+  <div id="modal-stats" class="modal-backdrop" hidden>
+    <div class="modal-box">
+      <button class="modal-close" data-close="modal-stats" aria-label="Затвори">✕</button>
+      <h2>Статистики</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-number" id="stat-played">0</span>
+          <span class="stat-label">Одиграно</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="stat-winpct">0</span>
+          <span class="stat-label">% Победи</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="stat-streak">0</span>
+          <span class="stat-label">Тековна серија</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number" id="stat-maxstreak">0</span>
+          <span class="stat-label">Макс серија</span>
+        </div>
+      </div>
+      <p class="dist-title">Распоред на погодувања</p>
+      <div id="dist-chart"></div>
+    </div>
+  </div>
+
+  <script>
+  (() => {
+    // ── Constants ────────────────────────────────────────────────
+    const WORD_LENGTH   = 6;
+    const MAX_GUESSES   = 6;
+    const STORAGE_KEY   = 'shesterka_state';
+    const STATS_KEY     = 'shesterka_stats';
+    const START_DATE    = new Date('2025-01-01T00:00:00');
+    const FLIP_DURATION = 500;  // ms per tile flip
+    const FLIP_STAGGER  = 100;  // ms between tiles
+
+    // Macedonian keyboard layout rows
+    const KB_ROWS = [
+      ['Љ','Њ','Е','Р','Т','Ѕ','У','И','О','П','Ш','Ѓ'],
+      ['А','С','Д','Ф','Г','Х','Ј','К','Л','Ч','Ќ','Џ'],
+      ['ENTER','Ж','З','Ц','В','Б','Н','М','BACK'],
+    ];
+
+    // Latin (QWERTY) → Macedonian Cyrillic mapping
+    const LATIN_MAP = {
+      q:'Љ', w:'Њ', e:'Е', r:'Р', t:'Т', y:'Ѕ', u:'У', i:'И', o:'О', p:'П',
+      a:'А', s:'С', d:'Д', f:'Ф', g:'Г', h:'Х', j:'Ј', k:'К', l:'Л',
+      z:'Ж', x:'З', c:'Ц', v:'В', b:'Б', n:'Н', m:'М',
+    };
+
+    // All valid keyboard letters (Set for fast lookup)
+    const KB_LETTERS = new Set(KB_ROWS.flat().filter(k => k !== 'ENTER' && k !== 'BACK'));
+
+    // ── State ────────────────────────────────────────────────────
+    let answer        = '';
+    let currentGuess  = [];
+    let guesses       = [];       // array of strings (submitted guesses)
+    let gameStatus    = 'playing';
+    let letterStatus  = {};       // letter → 'correct'|'present'|'absent'
+    let isRevealing   = false;
+
+    // ── Helpers ───────────────────────────────────────────────────
+    function getTodayStr() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function getDayIndex() {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const start = new Date(START_DATE);
+      start.setHours(0,0,0,0);
+      return Math.floor((today - start) / 86400000);
+    }
+
+    function getDailyAnswer() {
+      const idx = getDayIndex() % ANSWERS.length;
+      return ANSWERS[idx];
+    }
+
+    // ── DOM Building ──────────────────────────────────────────────
+    function buildBoard() {
+      const board = document.getElementById('board');
+      for (let r = 0; r < MAX_GUESSES; r++) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        row.id = `row-${r}`;
+        for (let c = 0; c < WORD_LENGTH; c++) {
+          const tile = document.createElement('div');
+          tile.className = 'tile';
+          tile.id = `tile-${r}-${c}`;
+          row.appendChild(tile);
+        }
+        board.appendChild(row);
+      }
+    }
+
+    function buildKeyboard() {
+      const kb = document.getElementById('keyboard');
+      KB_ROWS.forEach(row => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'keyboard-row';
+        row.forEach(key => {
+          const btn = document.createElement('button');
+          btn.className = 'key';
+          if (key === 'ENTER') {
+            btn.textContent = 'ВНЕСИ';
+            btn.classList.add('wide');
+            btn.dataset.key = 'ENTER';
+          } else if (key === 'BACK') {
+            btn.textContent = '⌫';
+            btn.classList.add('wide');
+            btn.dataset.key = 'BACKSPACE';
+          } else {
+            btn.textContent = key;
+            btn.dataset.key = key;
+          }
+          btn.addEventListener('click', () => handleKey(btn.dataset.key));
+          rowEl.appendChild(btn);
+        });
+        kb.appendChild(rowEl);
+      });
+    }
+
+    // ── Tile / Row Helpers ────────────────────────────────────────
+    function getTile(row, col) {
+      return document.getElementById(`tile-${row}-${col}`);
+    }
+
+    function getRow(row) {
+      return document.getElementById(`row-${row}`);
+    }
+
+    // ── Game Logic ────────────────────────────────────────────────
+    function evaluateGuess(guess) {
+      const result    = Array(WORD_LENGTH).fill('absent');
+      const remaining = answer.split('');
+
+      // Pass 1: mark correct
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        if (guess[i] === answer[i]) {
+          result[i] = 'correct';
+          remaining[i] = null;
+        }
+      }
+      // Pass 2: mark present
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        if (result[i] === 'correct') continue;
+        const idx = remaining.indexOf(guess[i]);
+        if (idx !== -1) {
+          result[i] = 'present';
+          remaining[idx] = null;
+        }
+      }
+      return result;
+    }
+
+    // Status priority: correct > present > absent
+    const STATUS_PRIORITY = { correct: 3, present: 2, absent: 1 };
+
+    function updateLetterStatus(guess, result) {
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        const letter = guess[i];
+        const newSt  = result[i];
+        const oldSt  = letterStatus[letter];
+        if (!oldSt || STATUS_PRIORITY[newSt] > STATUS_PRIORITY[oldSt]) {
+          letterStatus[letter] = newSt;
+        }
+      }
+    }
+
+    function updateKeyboard() {
+      document.querySelectorAll('.key[data-key]').forEach(btn => {
+        const k = btn.dataset.key;
+        if (letterStatus[k]) {
+          btn.dataset.state = letterStatus[k];
+        }
+      });
+    }
+
+    // ── Input ─────────────────────────────────────────────────────
+    function handleKey(key) {
+      if (gameStatus !== 'playing' || isRevealing) return;
+      if (key === 'BACKSPACE') {
+        handleBackspace();
+      } else if (key === 'ENTER') {
+        handleEnter();
+      } else if (KB_LETTERS.has(key)) {
+        handleLetter(key);
+      }
+    }
+
+    function handleLetter(letter) {
+      if (currentGuess.length >= WORD_LENGTH) return;
+      currentGuess.push(letter);
+      const row = guesses.length;
+      const col = currentGuess.length - 1;
+      const tile = getTile(row, col);
+      tile.textContent = letter;
+      tile.dataset.letter = letter;
+      // Pop animation
+      tile.classList.remove('pop');
+      void tile.offsetWidth; // reflow
+      tile.classList.add('pop');
+    }
+
+    function handleBackspace() {
+      if (currentGuess.length === 0) return;
+      currentGuess.pop();
+      const row = guesses.length;
+      const col = currentGuess.length;
+      const tile = getTile(row, col);
+      tile.textContent = '';
+      delete tile.dataset.letter;
+    }
+
+    function handleEnter() {
+      const row   = guesses.length;
+      const guess = currentGuess.join('');
+
+      if (currentGuess.length < WORD_LENGTH) {
+        showToast('Недоволно букви');
+        shakeRow(row);
+        return;
+      }
+
+      // Validate: check it's in the word list
+      const validSet = new Set(VALID_GUESSES.map(w => w.toUpperCase()));
+      if (!validSet.has(guess.toUpperCase())) {
+        showToast('Непознат збор');
+        shakeRow(row);
+        return;
+      }
+
+      const result = evaluateGuess(guess);
+      guesses.push(guess);
+      currentGuess = [];
+      isRevealing  = true;
+
+      revealRow(row, result, () => {
+        isRevealing = false;
+        updateLetterStatus(guess, result);
+        updateKeyboard();
+        saveState();
+
+        const won = result.every(s => s === 'correct');
+        if (won) {
+          gameStatus = 'won';
+          saveState();
+          updateStats(true, guesses.length);
+          setTimeout(() => {
+            bounceRow(row);
+            showToast(wonMessages[Math.min(guesses.length - 1, wonMessages.length - 1)]);
+            setTimeout(() => showEndModal(), 1800);
+          }, 200);
+        } else if (guesses.length >= MAX_GUESSES) {
+          gameStatus = 'lost';
+          saveState();
+          updateStats(false, 0);
+          setTimeout(() => {
+            showToast(answer, 3500);
+            setTimeout(() => showEndModal(), 2000);
+          }, 400);
+        }
+      });
+    }
+
+    const wonMessages = [
+      'Феноменално! 🎉',
+      'Одлично! 🌟',
+      'Супер! 👏',
+      'Браво! 😊',
+      'Добро! 👍',
+      'Успеа! 😅',
+    ];
+
+    // ── Reveal animation ─────────────────────────────────────────
+    function revealRow(rowIndex, result, onDone) {
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        const tile  = getTile(rowIndex, i);
+        const delay = i * FLIP_STAGGER;
+
+        setTimeout(() => {
+          tile.classList.add('flip');
+          // Apply color at midpoint of flip
+          setTimeout(() => {
+            tile.dataset.state = result[i];
+          }, FLIP_DURATION / 2);
+          // Remove flip class after animation
+          setTimeout(() => {
+            tile.classList.remove('flip');
+          }, FLIP_DURATION);
+        }, delay);
+      }
+
+      const totalTime = (WORD_LENGTH - 1) * FLIP_STAGGER + FLIP_DURATION;
+      setTimeout(onDone, totalTime + 50);
+    }
+
+    function shakeRow(rowIndex) {
+      const row = getRow(rowIndex);
+      row.classList.remove('shake');
+      void row.offsetWidth;
+      row.classList.add('shake');
+      row.addEventListener('animationend', () => row.classList.remove('shake'), { once: true });
+    }
+
+    function bounceRow(rowIndex) {
+      for (let i = 0; i < WORD_LENGTH; i++) {
+        const tile  = getTile(rowIndex, i);
+        const delay = i * 80;
+        setTimeout(() => {
+          tile.classList.add('bounce');
+          tile.addEventListener('animationend', () => tile.classList.remove('bounce'), { once: true });
+        }, delay);
+      }
+    }
+
+    // ── Persistence ───────────────────────────────────────────────
+    function saveState() {
+      const state = { date: getTodayStr(), guesses, gameStatus };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return false;
+        const state = JSON.parse(raw);
+        if (state.date !== getTodayStr()) return false;
+        guesses    = state.guesses    || [];
+        gameStatus = state.gameStatus || 'playing';
+        return true;
+      } catch { return false; }
+    }
+
+    function restoreBoard() {
+      guesses.forEach((guess, rowIdx) => {
+        const result = evaluateGuess(guess);
+        for (let c = 0; c < WORD_LENGTH; c++) {
+          const tile = getTile(rowIdx, c);
+          tile.textContent    = guess[c];
+          tile.dataset.letter = guess[c];
+          tile.dataset.state  = result[c];
+        }
+        updateLetterStatus(guess, result);
+      });
+      updateKeyboard();
+    }
+
+    // ── Stats ─────────────────────────────────────────────────────
+    function defaultStats() {
+      return {
+        played: 0, won: 0,
+        currentStreak: 0, maxStreak: 0,
+        distribution: { 1:0, 2:0, 3:0, 4:0, 5:0, 6:0 },
+        lastWonDate: null,
+      };
+    }
+
+    function loadStats() {
+      try {
+        const raw = localStorage.getItem(STATS_KEY);
+        if (!raw) return defaultStats();
+        return { ...defaultStats(), ...JSON.parse(raw) };
+      } catch { return defaultStats(); }
+    }
+
+    function saveStatsData(stats) {
+      localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+    }
+
+    function updateStats(won, guessCount) {
+      const stats   = loadStats();
+      const today   = getTodayStr();
+      stats.played += 1;
+      if (won) {
+        stats.won += 1;
+        stats.distribution[guessCount] = (stats.distribution[guessCount] || 0) + 1;
+        // Streak: if last won was yesterday, increment; else reset to 1
+        if (stats.lastWonDate) {
+          const last = new Date(stats.lastWonDate + 'T00:00:00');
+          const todayD = new Date(today + 'T00:00:00');
+          const diff = Math.round((todayD - last) / 86400000);
+          stats.currentStreak = diff === 1 ? stats.currentStreak + 1 : 1;
+        } else {
+          stats.currentStreak = 1;
+        }
+        stats.maxStreak  = Math.max(stats.maxStreak, stats.currentStreak);
+        stats.lastWonDate = today;
+      } else {
+        stats.currentStreak = 0;
+      }
+      saveStatsData(stats);
+    }
+
+    function renderStats() {
+      const stats = loadStats();
+      document.getElementById('stat-played').textContent    = stats.played;
+      document.getElementById('stat-winpct').textContent    = stats.played ? Math.round(stats.won / stats.played * 100) : 0;
+      document.getElementById('stat-streak').textContent    = stats.currentStreak;
+      document.getElementById('stat-maxstreak').textContent = stats.maxStreak;
+
+      const dist   = stats.distribution;
+      const max    = Math.max(...Object.values(dist), 1);
+      const chart  = document.getElementById('dist-chart');
+      chart.innerHTML = '';
+      for (let i = 1; i <= MAX_GUESSES; i++) {
+        const count   = dist[i] || 0;
+        const barPct  = Math.round((count / max) * 100);
+        const isWinRow = gameStatus === 'won' && guesses.length === i;
+        const row     = document.createElement('div');
+        row.className = 'dist-row';
+        row.innerHTML = `
+          <span class="dist-label">${i}</span>
+          <div class="dist-bar-wrap">
+            <div class="dist-bar ${isWinRow ? 'highlight' : ''}"
+                 style="width: ${Math.max(barPct, 8)}%">${count}</div>
+          </div>`;
+        chart.appendChild(row);
+      }
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────
+    function showToast(msg, duration = 2000) {
+      const container = document.getElementById('toast-container');
+      const toast     = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), duration);
+    }
+
+    // ── Modals ────────────────────────────────────────────────────
+    function showModal(id) {
+      document.getElementById(id).removeAttribute('hidden');
+    }
+
+    function hideModal(id) {
+      document.getElementById(id).setAttribute('hidden', '');
+    }
+
+    function showEndModal() {
+      const title    = document.getElementById('end-title');
+      const result   = document.getElementById('end-result');
+      const answerEl = document.getElementById('end-answer');
+      const nextInfo = document.getElementById('next-word-info');
+
+      if (gameStatus === 'won') {
+        title.textContent  = 'Браво! 🎉';
+        result.textContent = `Го погоди за ${guesses.length} / 6`;
+        answerEl.textContent = '';
+      } else {
+        title.textContent  = 'Следниот пат ќе успееш!';
+        result.textContent = 'Не успеа 😔';
+        answerEl.textContent = `Зборот беше: ${answer}`;
+      }
+
+      // Count down to midnight
+      const now     = new Date();
+      const midnite = new Date(now);
+      midnite.setHours(24, 0, 0, 0);
+      const diff    = Math.round((midnite - now) / 1000);
+      const h       = Math.floor(diff / 3600);
+      const m       = Math.floor((diff % 3600) / 60);
+      nextInfo.textContent = `Следниот збор за: ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+
+      showModal('modal-end');
+    }
+
+    // ── Share ─────────────────────────────────────────────────────
+    const EMOJI = { correct: '🟩', present: '🟨', absent: '⬛' };
+
+    function generateShareText() {
+      const dayIdx = getDayIndex();
+      const score  = gameStatus === 'won' ? `${guesses.length}/6` : 'X/6';
+      let text     = `Шестерка #${dayIdx} ${score}\n\n`;
+      guesses.forEach(guess => {
+        const res = evaluateGuess(guess);
+        text += res.map(s => EMOJI[s]).join('') + '\n';
+      });
+      return text.trim();
+    }
+
+    // ── Event Listeners ───────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.key === 'Backspace') { handleKey('BACKSPACE'); return; }
+      if (e.key === 'Enter')     { handleKey('ENTER'); return; }
+
+      const raw    = e.key;
+      const lower  = raw.toLowerCase();
+      const mapped = LATIN_MAP[lower];
+
+      // Accept direct Cyrillic input
+      if (raw.length === 1 && KB_LETTERS.has(raw.toUpperCase())) {
+        handleKey(raw.toUpperCase());
+      } else if (mapped) {
+        handleKey(mapped);
+      }
+    });
+
+    document.getElementById('btn-help').addEventListener('click', () => showModal('modal-help'));
+    document.getElementById('btn-stats').addEventListener('click', () => {
+      renderStats();
+      showModal('modal-stats');
+    });
+
+    document.querySelectorAll('[data-close]').forEach(btn => {
+      btn.addEventListener('click', () => hideModal(btn.dataset.close));
+    });
+
+    // Close modal when clicking backdrop
+    document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
+      backdrop.addEventListener('click', e => {
+        if (e.target === backdrop) hideModal(backdrop.id);
+      });
+    });
+
+    document.getElementById('btn-share').addEventListener('click', () => {
+      const text = generateShareText();
+      navigator.clipboard.writeText(text)
+        .then(() => showToast('Копирано! 📋'))
+        .catch(() => showToast('Не можев да копирам'));
+    });
+
+    document.getElementById('btn-stats-from-end').addEventListener('click', () => {
+      hideModal('modal-end');
+      renderStats();
+      showModal('modal-stats');
+    });
+
+    // ── Init ──────────────────────────────────────────────────────
+    function init() {
+      buildBoard();
+      buildKeyboard();
+
+      answer = getDailyAnswer();
+
+      const hasState = loadState();
+
+      if (hasState && guesses.length > 0) {
+        restoreBoard();
+        if (gameStatus !== 'playing') {
+          // Show end modal after a short delay for restored games
+          setTimeout(() => showEndModal(), 500);
+        }
+      }
+
+      // Show help on very first visit
+      const seen = localStorage.getItem('shesterka_seen');
+      if (!seen) {
+        localStorage.setItem('shesterka_seen', '1');
+        setTimeout(() => showModal('modal-help'), 300);
+      }
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>
