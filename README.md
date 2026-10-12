@@ -2,7 +2,7 @@
 
 A Macedonian 6-letter Wordle clone, inspired by [Zborle](https://zborle.web.app/).
 
-Play at: **https://\<your-username\>.github.io/shesterka/**
+Play at: **https://shesterka.com/**
 
 ---
 
