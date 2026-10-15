@@ -632,11 +632,14 @@
     }
 
     function getDayIndex() {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const start = new Date(START_DATE);
-      start.setHours(0,0,0,0);
-      return Math.floor((today - start) / 86400000);
+      // Count calendar days in UTC so summer-time changes can't shift the result.
+      const d = new Date();
+      const days = Math.round(
+        (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) -
+         Date.UTC(START_DATE.getFullYear(), START_DATE.getMonth(), START_DATE.getDate())) / 86400000);
+      // The original formula lost a day at the first summer-time change (30 March 2025);
+      // keep that offset so the word sequence carries on without a repeat or skip.
+      return days - 1;
     }
 
     function getDailyAnswer() {
