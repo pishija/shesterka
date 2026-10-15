@@ -627,16 +627,16 @@
     let gameStatus    = 'playing';
     let letterStatus  = {};       // letter → 'correct'|'present'|'absent'
     let isRevealing   = false;
+    let gameDate      = '';       // day this game belongs to, fixed at load
+    let gameDay       = 0;        // day index of that game
 
     // ── Helpers ───────────────────────────────────────────────────
-    function getTodayStr() {
-      const d = new Date();
+    function getTodayStr(d = new Date()) {
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
 
-    function getDayIndex() {
+    function getDayIndex(d = new Date()) {
       // Count calendar days in UTC so summer-time changes can't shift the result.
-      const d = new Date();
       const days = Math.round(
         (Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) -
          Date.UTC(START_DATE.getFullYear(), START_DATE.getMonth(), START_DATE.getDate())) / 86400000);
@@ -646,8 +646,7 @@
     }
 
     function getDailyAnswer() {
-      const idx = getDayIndex() % ANSWERS.length;
-      return ANSWERS[idx];
+      return ANSWERS[gameDay % ANSWERS.length];
     }
 
     // ── DOM Building ──────────────────────────────────────────────
@@ -890,7 +889,7 @@
 
     // ── Persistence ───────────────────────────────────────────────
     function saveState() {
-      const state = { date: getTodayStr(), guesses, gameStatus };
+      const state = { date: gameDate, guesses, gameStatus };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
@@ -899,7 +898,7 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return false;
         const state = JSON.parse(raw);
-        if (state.date !== getTodayStr()) return false;
+        if (state.date !== gameDate) return false;
         guesses    = state.guesses    || [];
         gameStatus = state.gameStatus || 'playing';
         return true;
@@ -944,7 +943,7 @@
 
     function updateStats(won, guessCount) {
       const stats   = loadStats();
-      const today   = getTodayStr();
+      const today   = gameDate;
       stats.played += 1;
       if (won) {
         stats.won += 1;
@@ -1046,7 +1045,7 @@
     const GAME_URL = 'https://shesterka.com/';
 
     function generateShareText() {
-      const dayIdx = getDayIndex();
+      const dayIdx = gameDay;
       const score  = gameStatus === 'won' ? `${guesses.length}/6` : 'X/6';
       let text     = `Шестерка #${dayIdx} ${score}\n\n`;
       guesses.forEach(guess => {
@@ -1061,7 +1060,12 @@
     document.addEventListener('keydown', e => {
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === 'Backspace') { handleKey('BACKSPACE'); return; }
-      if (e.key === 'Enter')     { handleKey('ENTER'); return; }
+      if (e.key === 'Enter') {
+        // Stop the browser also "clicking" an on-screen key that still has focus
+        if (e.target.closest && e.target.closest('.key')) e.preventDefault();
+        handleKey('ENTER');
+        return;
+      }
 
       const raw    = e.key;
       const lower  = raw.toLowerCase();
@@ -1110,7 +1114,10 @@
       buildBoard();
       buildKeyboard();
 
-      answer = getDailyAnswer();
+      const now = new Date();
+      gameDate = getTodayStr(now);
+      gameDay  = getDayIndex(now);
+      answer   = getDailyAnswer();
 
       const hasState = loadState();
 
@@ -1131,6 +1138,14 @@
     }
 
     init();
+
+    // A tab left open overnight: load the new day's word when the player comes back.
+    // A game being played across midnight is left alone and still counts for its own day.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && getTodayStr() !== gameDate && !isRevealing) {
+        location.reload();
+      }
+    });
   })();
   </script>
 </body>
