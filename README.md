@@ -66,3 +66,5 @@ The extraction script outputs all valid 6-letter Macedonian Cyrillic words. The 
 ## Word list attribution
 
 The word list is derived from the **OpenOffice Macedonian spellcheck dictionary**, originally developed by the Free/Libre Software Organisation of Macedonia (OSSM) and made available via [`gerazov/dictionary-mk`](https://github.com/gerazov/dictionary-mk).
+
+Word frequencies come from the [Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de) (`mkd_wikipedia_2021_300K` and `mkd-mk_web_2015_1M`, CC BY 4.0). Words were cross-checked against the [Digital Dictionary of the Macedonian Language](http://drmj.eu) (drmj.eu) to filter out proper nouns and misspellings.
